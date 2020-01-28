@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    {% load static %}
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <link rel="stylesheet" href="{% static 'ConfluenceAPP/css/style.css' %}">
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+    <style type="text/css">
+        html {
+            height: 100%
+        }
+
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0
+        }
+
+        #mapDiv {
+            height: 100%;
+        }
+
+        #coordsDiv {
+            position: absolute;
+            background-color: white;
+            border: 1px solid black;
+            bottom: 50px;
+            right: 50px;
+            height: 50px;
+            width: 380px;
+            padding-top: 5px;
+            padding-left: 5px;
+        }
+    </style>
+
+    <!-- Add the base url for your web server here, 
+e.g. http://localhost:8080/gmaps/pluralsight -->
+    <base href="<ADD YOUR WEB SERVER BASE URL HERE">
+
+    <!-- Obtain your Google Maps API key and add it here -->
+    </!-->
+    <script type="text/javascript"
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCaAwmeyhEqabF0wWWcjEusQIN4SHxZ1x4">
+        </script>
+        
+    <script type="text/javascript">
+
+        var map;
+        var initialCenter;
+        var initialZoom;
+        var elevationService;
+        var geocoder;
+        var elevator = new google.maps.ElevationService;
+        var infowindow = new google.maps.InfoWindow({map: map});
+
+        function init() {
+            var mapOptions = {
+                // center: new google.maps.LatLng(52.373922, -3.427734),
+                center: new google.maps.LatLng({{pt_lat}}.000000, {{pt_long}}.000000),
+                zoom: 6,
+                mapTypeId: google.maps.MapTypeId.TERRAIN,
+                mapTypeControl: false
+    };
+
+        map = new google.maps.Map(document.getElementById("mapDiv"), mapOptions);
+
+        initialCenter = mapOptions.center;
+        initialZoom = mapOptions.zoom;
+
+        // addButtons();
+        addGroundOverlay();
+        addMarkers();
+        // addPolyline();
+        // addEditablePolygon();
+        // addDraggableRectangle();
+        addCircle();
+        // addKmlLayer();
+        // addGeoJSONDataLayer();
+        addElevationService();
+        addGeocodingService();
+        addGoToInitialExtent();
+        addShowCoords();
+        displayLocationElevation(event.latLng, elevator, infowindow);
+}
+        google.maps.event.addDomListener(window, "load", init);
+
+        function addGroundOverlay() {
+            // south-west and north-east corners
+            var imageBounds = new google.maps.LatLngBounds(
+                new google.maps.LatLng(53.178521, -3.438549),
+                new google.maps.LatLng(53.194979, -3.390613));
+            var historicalOverlay = new google.maps.GroundOverlay(
+                'http://localhost:8080/gmaps/images/denbigh.jpg',
+                imageBounds);
+            historicalOverlay.setMap(map);
+        }
+
+        function addMarkers() {
+
+            var image = "images/walesflag.png";
+            var centerMarker = new google.maps.Marker({
+                icon: image,
+                // position: new google.maps.LatLng(52.345860,-3.051817),
+                position: new google.maps.LatLng({{pt_lat}}.000000, {{pt_long}}.000000),
+        map: map,
+        // title: "The Offa's Dyke Center, Knighton, Powys"
+    });
+}
+
+function displayLocationElevation(location, elevator, infowindow) {
+  // Initiate the location request
+  elevator.getElevationForLocations({
+    'locations': [int({{pt_lat}}.000000), int({{pt_long}}.000000)]
+  }, function(results, status) {
+    infowindow.setPosition(location);
+    if (status === 'OK') {
+      // Retrieve the first result
+      if (results[0]) {
+        // Open the infowindow indicating the elevation at the clicked position.
+        infowindow.setContent('The elevation at this point <br>is ' +
+            results[0].elevation + ' meters.');
+      } else {
+        infowindow.setContent('No results found');
+      }
+    } else {
+      infowindow.setContent('Elevation service failed due to: ' + status);
+    }
+  });
+}
+        function addCircle() {
+            var circle = new google.maps.Circle({
+                map: map,
+                // center: new google.maps.LatLng(52.341049, -3.053942),
+                // center: new google.maps.LatLng(44.000000, -122.000000),
+                center: new google.maps.LatLng({{pt_lat}}.000000, {{pt_long}}.000000),
+                fillColor: "#FF33FF",
+                fillOpacity: 0.8,
+                strokeColor: "#FF0000",
+                strokeOpacity: 0.9,
+                strokeWeight: 2
+    });
+        circle.setRadius(10000);
+}
+
+        function addElevationService() {
+
+            // Create an ElevationService
+            elevationService = new google.maps.ElevationService();
+
+            // Add a listener for the double click event and call getElevation on that location
+            google.maps.event.addListener(map, 'click', getElevation);
+
+        }
+
+        function getElevation(event) {
+
+            var locations = [];
+
+            var infowindow = new google.maps.InfoWindow();
+
+            // Retrieve the clicked location and add it to the array
+            var userClickLocation = event.latLng;
+            locations.push(userClickLocation);
+
+            // Create a LocationElevationRequest object using the array's single value
+            var positionalRequest = {
+                'locations': locations
+            }
+
+            // Send the location request
+            elevationService.getElevationForLocations(positionalRequest, function (results, status) {
+                if (status == google.maps.ElevationStatus.OK) {
+                    // Retrieve the first result
+                    if (results[0]) {
+                        // Open an info window indicating the elevation at the clicked position
+                        infowindow.setContent("The elevation at this point is " + Math.round(results[0].elevation) + " meters.");
+                        infowindow.setPosition(userClickLocation);
+                        infowindow.open(map);
+                    } else {
+                        alert("No results found");
+                    }
+                } else {
+                    alert("Elevation service failed due to: " + status);
+                }
+            });
+        }
+
+        function addGeocodingService() {
+            geocoder = new google.maps.Geocoder();
+        }
+
+        function geocodeAddress() {
+            var address = document.getElementById("address").value;
+            geocoder.geocode({ 'address': address }, function (results, status) {
+                if (status == google.maps.GeocoderStatus.OK) {
+                    map.setCenter(results[0].geometry.location);
+                    var marker = new google.maps.Marker({
+                        map: map,
+                        position: results[0].geometry.location
+                    });
+                    map.setZoom(17);
+                    map.panTo(marker.position)
+                } else {
+                    alert("Geocode failed with the following error: " + status);
+                }
+            });
+        }
+
+        function addGoToInitialExtent() {
+            google.maps.event.addListener(map, 'rightclick', function () {
+                map.setCenter(initialCenter);
+                map.setZoom(initialZoom);
+            });
+        }
+
+        function addShowCoords() {
+            google.maps.event.addListener(map, 'center_changed', function () {
+                var newCenter = map.getCenter();
+                var newZoom = map.getZoom();
+                document.getElementById('coordsDiv').innerHTML = "Center: " + newCenter.toString() + "<br>Zoom: " + newZoom;
+            });
+        }
+    </script>
+
+</head>
+
+<body>
+    <div style="position: fixed; z-index: -99; width: 100%; height: auto">
+        <video loop autoplay muted playsinline frameborder="0" height="100%" width="100%" 
+            src="{% static 'ConfluenceAPP\videos\starrynight.mp4'%}">
+        </video> 
+        <!-- this is a video file above me -->
+    </div>
+    <div class="row" style="padding-top: 75px;">
+
+        <div class="col s4">
+            <div id="mapDiv" style="width:600px;height:600px"></div>
+        </div>
+        <div class="col s4">
+            <img src="https://maps.googleapis.com/maps/api/streetview?size=600x600&location={{pt_lat}}.000000,{{pt_long}}.000000
+    &fov=80&heading=70&pitch=0
+    &key=AIzaSyCaAwmeyhEqabF0wWWcjEusQIN4SHxZ1x4" alt="">
+        </div>
+        <div class="col s4">
+            <iframe src="http://confluence.org/confluence.php?lat={{pt_lat}}&lon={{pt_long}}" style="-webkit-transform:scale(1.0);-moz-transform-scale(1.0);" width="600" height="600"></iframe>
+        </div>
+    </div>
+    <div class="row">
+            <div class="col s4" style="color: beige; text-align: center" >
+                <h5>Coordinates entered:</h5>
+                <b>Latitude:</b> {{pt_lat}}.000000 <br>
+                <b>Longitude:</b> {{pt_long}}.000000
+                post_script
+            </div>
+            <div class="col s4" class="inlineblock" style="color: beige; text-align: center">
+                <h5>Nearest thing:</h5>
+                <p>THING</p>
+                <h5>Nearest City/Town:</h5>
+                <p>THING</p>
+            </div>
+            <div class="col s4" class="inlineblock" style="text-align: center;">
+                <a href="http://localhost:8000/"class="btn waves-effect waves-green green btn-medium" style="width: 100px;"><i class="material-icons">home</i></a>
+                <a href="http://localhost:8000/batman"class="btn waves-effect waves-green green btn-medium" style="width: 100px; background: url {%static 'ConfluenceAPP\images\batman_logo.png' %} no-repeat scroll 0 0 transparent;"></a>
+
+            </div>
+    </div>
+</div>
+</body>
+
+</html>
